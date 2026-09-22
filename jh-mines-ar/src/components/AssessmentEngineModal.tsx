@@ -208,7 +208,7 @@ export const AssessmentEngineModal: React.FC<AssessmentEngineProps> = ({ isOpen,
   // Assessment State
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
-  const [startTime, setStartTime] = useState<number>(Date.now());
+  const [startTime, setStartTime] = useState<number>(() => Date.now());
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [scorePercentage, setScorePercentage] = useState<number>(0);
   const [reactionTimeSec, setReactionTimeSec] = useState<number>(0);

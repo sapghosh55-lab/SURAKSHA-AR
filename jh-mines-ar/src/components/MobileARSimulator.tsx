@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { Language, SafetyScenarioId } from '../types';
 import { translations } from '../data/translations';
 import { safetyScenariosData } from '../data/mockData';
 import { FireExtinguisherARCanvas } from './FireExtinguisherARCanvas';
 import { ToxicGasARCanvas } from './ToxicGasARCanvas';
+import { useRealDeviceSensors } from '../hooks/useRealDeviceSensors';
 import {
   Flame,
   Lock,
@@ -32,7 +33,7 @@ import {
   Moon,
   Compass,
   Layers,
-  Image as ImageIcon
+  Gauge
 } from 'lucide-react';
 
 interface MobileARSimulatorProps {
@@ -53,27 +54,22 @@ export const MobileARSimulator: React.FC<MobileARSimulatorProps> = ({ lang, onOp
   const [showCertificate, setShowCertificate] = useState<boolean>(false);
   const [isFullScreenPhone, setIsFullScreenPhone] = useState<boolean>(false);
 
-  // Real Camera Feed & Custom Background Photo state
-  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
-  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
+  // Custom Background Photo state & File Upload Ref
   const [customBgUrl, setCustomBgUrl] = useState<string | null>(null);
-
-  // DOM Refs
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // AR Device Sensors Simulation & Telemetry State
-  const [imuData, setImuData] = useState<{ pitch: number; roll: number; yaw: number; hasHardwareSensor: boolean }>({
-    pitch: 12,
-    roll: -4,
-    yaw: 184,
-    hasHardwareSensor: false
-  });
-  const [slamStatus, setSlamStatus] = useState<'locked' | 'scanning'>('locked');
-  const [trackingPoints, setTrackingPoints] = useState<number>(142);
-  const [luxValue, setLuxValue] = useState<number>(420);
-  const [isLowLightSim, setIsLowLightSim] = useState<boolean>(false);
+  // Real Hardware Sensors Telemetry Hook
+  const {
+    isCameraActive,
+    cameraStream,
+    cameraError,
+    luxValue,
+    trackingQuality,
+    imuData,
+    toggleCamera,
+    stopCamera,
+    videoRef
+  } = useRealDeviceSensors();
 
   const activeScenario = safetyScenariosData.find((s) => s.id === activeScenarioId) || safetyScenariosData[0];
 
@@ -91,8 +87,9 @@ export const MobileARSimulator: React.FC<MobileARSimulatorProps> = ({ lang, onOp
     }
   };
 
-  // Reset state when scenario changes
-  useEffect(() => {
+  // Reset scenario state on scenario selection change
+  const handleScenarioChange = (scenarioId: SafetyScenarioId | 'pass_fire_drill' | 'toxic_gas_drill') => {
+    setActiveScenarioId(scenarioId);
     setCurrentStep(1);
     setIsHazardResolved(false);
     setMethanePpm(2.4);
@@ -100,105 +97,6 @@ export const MobileARSimulator: React.FC<MobileARSimulatorProps> = ({ lang, onOp
     setPpeItemsVerified(['hardhat', 'goggles']);
     setSlopeCrackScanned(false);
     setShowCertificate(false);
-  }, [activeScenarioId]);
-
-  // Bind camera stream to videoRef
-  useEffect(() => {
-    if (videoRef.current && cameraStream) {
-      videoRef.current.srcObject = cameraStream;
-    }
-  }, [cameraStream, isCameraActive]);
-
-  // Clean camera stream on unmount
-  useEffect(() => {
-    return () => {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [cameraStream]);
-
-  // Device IMU Orientation Listener & Dynamic Fallback
-  useEffect(() => {
-    const handleOrientation = (e: DeviceOrientationEvent) => {
-      if (e.beta !== null || e.gamma !== null || e.alpha !== null) {
-        setImuData({
-          pitch: Math.round(e.beta || 0),
-          roll: Math.round(e.gamma || 0),
-          yaw: Math.round(e.alpha || 0),
-          hasHardwareSensor: true
-        });
-      }
-    };
-
-    if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
-      window.addEventListener('deviceorientation', handleOrientation);
-    }
-
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('deviceorientation', handleOrientation);
-      }
-    };
-  }, []);
-
-  // Desktop Fallback IMU Motion Tick (if no hardware gyroscope)
-  useEffect(() => {
-    if (imuData.hasHardwareSensor) return;
-    const interval = setInterval(() => {
-      const t = Date.now() / 1000;
-      setImuData({
-        pitch: Math.round(12 + Math.sin(t * 1.5) * 5),
-        roll: Math.round(-4 + Math.cos(t * 2) * 4),
-        yaw: Math.round((184 + Math.sin(t * 0.8) * 12) % 360),
-        hasHardwareSensor: false
-      });
-    }, 200);
-    return () => clearInterval(interval);
-  }, [imuData.hasHardwareSensor]);
-
-  // Dynamic SLAM Feature Tracking Points Jitter Animation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTrackingPoints(135 + Math.floor(Math.random() * 16));
-    }, 1200);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Camera Management Functions
-  const startCamera = async () => {
-    setCameraError(null);
-    try {
-      if (!navigator?.mediaDevices?.getUserMedia) {
-        throw new Error('Webcam / Rear Camera API is not supported in this browser environment.');
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-      });
-      setCameraStream(stream);
-      setIsCameraActive(true);
-      setCustomBgUrl(null);
-    } catch (err: any) {
-      console.error('Camera access error:', err);
-      setCameraError(err?.message || 'Camera permission denied or no camera device connected.');
-      setIsCameraActive(false);
-    }
-  };
-
-  const stopCamera = () => {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach((track) => track.stop());
-      setCameraStream(null);
-    }
-    setIsCameraActive(false);
-  };
-
-  const toggleCamera = () => {
-    if (isCameraActive) {
-      stopCamera();
-    } else {
-      startCamera();
-    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -207,7 +105,6 @@ export const MobileARSimulator: React.FC<MobileARSimulatorProps> = ({ lang, onOp
       stopCamera();
       const url = URL.createObjectURL(file);
       setCustomBgUrl(url);
-      setCameraError(null);
     }
   };
 
@@ -287,7 +184,7 @@ export const MobileARSimulator: React.FC<MobileARSimulatorProps> = ({ lang, onOp
           
           {/* WebGL 3D Gas Dispersion SCBA Protocol Option */}
           <button
-            onClick={() => setActiveScenarioId('toxic_gas_drill')}
+            onClick={() => handleScenarioChange('toxic_gas_drill')}
             className={`px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center space-x-1 transition ${
               activeScenarioId === 'toxic_gas_drill'
                 ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20 border border-amber-400 ring-2 ring-amber-400/30'
@@ -300,7 +197,7 @@ export const MobileARSimulator: React.FC<MobileARSimulatorProps> = ({ lang, onOp
 
           {/* Featured WebGL 3D Fire Extinguisher P-A-S-S Drill Option */}
           <button
-            onClick={() => setActiveScenarioId('pass_fire_drill')}
+            onClick={() => handleScenarioChange('pass_fire_drill')}
             className={`px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center space-x-1 transition ${
               activeScenarioId === 'pass_fire_drill'
                 ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20 border border-amber-400'
@@ -316,7 +213,7 @@ export const MobileARSimulator: React.FC<MobileARSimulatorProps> = ({ lang, onOp
             return (
               <button
                 key={s.id}
-                onClick={() => setActiveScenarioId(s.id)}
+                onClick={() => handleScenarioChange(s.id)}
                 className={`px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition ${
                   isSelected
                     ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20 border border-amber-400'
@@ -337,20 +234,22 @@ export const MobileARSimulator: React.FC<MobileARSimulatorProps> = ({ lang, onOp
       {/* AR Sensor HUD & Real Camera Control Panel Bar */}
       <div className="w-full max-w-5xl bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-lg space-y-3">
         
-        {/* Live Camera Passthrough Controls & Background Photo Upload */}
+        {/* Prominent Action Button for Real Camera & Hardware Sensors */}
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
           
           <div className="flex items-center space-x-2">
             <button
               onClick={toggleCamera}
-              className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition ${
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center space-x-2 transition shadow-lg ${
                 isCameraActive
-                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                  : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
+                  ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 animate-pulse'
+                  : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/30'
               }`}
             >
               {isCameraActive ? <CameraOff className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
-              <span>{isCameraActive ? 'Stop Live AR Camera' : 'Start Live AR Camera'}</span>
+              <span>
+                {isCameraActive ? 'Disable Real Camera & Sensors' : 'Enable Real Camera & IMU Sensors'}
+              </span>
             </button>
 
             <button
@@ -375,92 +274,107 @@ export const MobileARSimulator: React.FC<MobileARSimulatorProps> = ({ lang, onOp
           </div>
 
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setIsLowLightSim(!isLowLightSim)}
-              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-mono border transition flex items-center gap-1.5 ${
-                isLowLightSim
-                  ? 'bg-red-500/20 border-red-500/50 text-red-300 font-bold'
-                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {isLowLightSim ? <Moon className="w-3.5 h-3.5 text-red-400" /> : <Sun className="w-3.5 h-3.5 text-amber-400" />}
-              <span>{isLowLightSim ? 'Simulating Low Light' : 'Simulate Low Light'}</span>
-            </button>
+            <span className="text-[10px] font-mono text-slate-400 bg-slate-950 border border-slate-800 px-2 py-1 rounded">
+              Hardware Telemetry: {imuData.hasHardwareIMU ? 'HARDWARE IMU' : 'HYBRID FALLBACK'}
+            </span>
           </div>
 
         </div>
 
-        {/* AR Sensor HUD Metrics Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+        {/* Top AR HUD Sensor Strip (Real-Time Telemetry Badges) */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
           
-          {/* 1. Optical SLAM Status */}
+          {/* 1. Optical Tracking Quality Badge */}
           <div className="bg-slate-950 border border-slate-800 rounded-lg p-2.5 flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <div className="p-1.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                <Layers className="w-4 h-4 animate-pulse" />
+              <div
+                className={`p-1.5 rounded-md border ${
+                  trackingQuality === 'OPTIMAL'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                    : trackingQuality === 'LOW_LIGHT'
+                    ? 'bg-red-500/10 border-red-500/30 text-red-400 animate-pulse'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-400 animate-bounce'
+                }`}
+              >
+                <Layers className="w-4 h-4" />
               </div>
               <div>
                 <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">
-                  Optical SLAM Status
+                  Optical Tracking Quality
                 </span>
-                <span className="font-bold text-slate-100 flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
-                  Ground Plane Locked
-                </span>
+                {trackingQuality === 'OPTIMAL' ? (
+                  <span className="font-bold text-emerald-400 flex items-center gap-1 text-[11px]">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
+                    OPTIMAL
+                  </span>
+                ) : trackingQuality === 'LOW_LIGHT' ? (
+                  <span className="font-bold text-red-400 flex items-center gap-1 text-[10px]">
+                    <AlertTriangle className="w-3 h-3 animate-pulse" />
+                    Low Light: Switch to Marker Mode
+                  </span>
+                ) : (
+                  <span className="font-bold text-amber-400 flex items-center gap-1 text-[10px]">
+                    <AlertTriangle className="w-3 h-3 animate-pulse" />
+                    Unstable Motion: Hold Device Steady
+                  </span>
+                )}
               </div>
-            </div>
-            <div className="text-right font-mono text-[10px] text-cyan-400 bg-cyan-950/60 border border-cyan-800/40 px-2 py-1 rounded">
-              {trackingPoints} Points
             </div>
           </div>
 
-          {/* 2. Device IMU Sensors */}
+          {/* 2. Ambient Light Level */}
+          <div className="bg-slate-950 border border-slate-800 rounded-lg p-2.5 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div
+                className={`p-1.5 rounded-md border ${
+                  luxValue < 45
+                    ? 'bg-red-500/10 border-red-500/30 text-red-400 animate-pulse'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                }`}
+              >
+                {luxValue < 45 ? <Moon className="w-4 h-4 text-red-400" /> : <Sun className="w-4 h-4 text-amber-400" />}
+              </div>
+              <div>
+                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">
+                  Ambient Light Level
+                </span>
+                <span className="font-mono font-bold text-amber-300 text-[11px]">
+                  {luxValue} Lux
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. IMU Gyroscope (Pitch / Roll / Heading) */}
           <div className="bg-slate-950 border border-slate-800 rounded-lg p-2.5 flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <div className="p-1.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-400">
                 <Compass className="w-4 h-4 animate-spin" />
               </div>
               <div>
-                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                  Device IMU Tilt (Pitch/Roll/Yaw)
-                  <span className="text-[9px] px-1 bg-amber-500/20 text-amber-300 rounded font-bold">
-                    {imuData.hasHardwareSensor ? 'HW' : 'SIM'}
-                  </span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">
+                  IMU Gyroscope
                 </span>
-                <span className="font-mono font-bold text-amber-300 text-[11px]">
-                  P: {imuData.pitch}° • R: {imuData.roll}° • Y: {imuData.yaw}°
+                <span className="font-mono font-bold text-amber-300 text-[10px]">
+                  Pitch: {imuData.pitch}° | Roll: {imuData.roll}° | Heading: {imuData.heading}°
                 </span>
               </div>
             </div>
           </div>
 
-          {/* 3. Lux / Lighting Estimation */}
+          {/* 4. Device Acceleration */}
           <div className="bg-slate-950 border border-slate-800 rounded-lg p-2.5 flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <div
-                className={`p-1.5 rounded-md border ${
-                  isLowLightSim
-                    ? 'bg-red-500/10 border-red-500/30 text-red-400 animate-pulse'
-                    : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                }`}
-              >
-                {isLowLightSim ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              <div className="p-1.5 rounded-md bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                <Gauge className="w-4 h-4 animate-pulse" />
               </div>
               <div>
                 <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">
-                  Lux / Ambient Light
+                  Device Acceleration
                 </span>
-                {isLowLightSim ? (
-                  <span className="text-[11px] font-bold text-red-400 flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5 animate-pulse" />
-                    Low Light: Use Marker Fallback
-                  </span>
-                ) : (
-                  <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Ambient Light: OK ({luxValue} Lux)
-                  </span>
-                )}
+                <span className="font-mono font-bold text-cyan-300 text-[11px]">
+                  {imuData.motionIntensity} m/s²
+                </span>
               </div>
             </div>
           </div>
@@ -478,6 +392,10 @@ export const MobileARSimulator: React.FC<MobileARSimulatorProps> = ({ lang, onOp
             cameraStream={cameraStream}
             customBgUrl={customBgUrl}
             isCameraActive={isCameraActive}
+            pitch={imuData.pitch}
+            roll={imuData.roll}
+            heading={imuData.heading}
+            luxValue={luxValue}
           />
           {isHazardResolved && (
             <div className="flex justify-center">
@@ -499,6 +417,10 @@ export const MobileARSimulator: React.FC<MobileARSimulatorProps> = ({ lang, onOp
             cameraStream={cameraStream}
             customBgUrl={customBgUrl}
             isCameraActive={isCameraActive}
+            pitch={imuData.pitch}
+            roll={imuData.roll}
+            heading={imuData.heading}
+            luxValue={luxValue}
           />
           {isHazardResolved && (
             <div className="flex justify-center">
@@ -550,21 +472,23 @@ export const MobileARSimulator: React.FC<MobileARSimulatorProps> = ({ lang, onOp
             <div className="relative w-full h-[460px] bg-slate-900 rounded-b-[1.8rem] overflow-hidden flex flex-col justify-between p-3 select-none">
               
               {/* Background Video Passthrough / Uploaded Photo / Mine Shader */}
+              {isCameraActive && (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="object-cover absolute inset-0 w-full h-full pointer-events-none z-0"
+                />
+              )}
+
               {customBgUrl ? (
                 <img
                   src={customBgUrl}
                   alt="Custom AR Backdrop"
                   className="absolute inset-0 z-0 w-full h-full object-cover"
                 />
-              ) : isCameraActive && cameraStream ? (
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="absolute inset-0 z-0 w-full h-full object-cover"
-                />
-              ) : (
+              ) : !isCameraActive ? (
                 <div className="absolute inset-0 z-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 opacity-90">
                   {activeScenarioId === 'methane_drill' && (
                     <div className="absolute inset-0 flex items-center justify-center opacity-40">
@@ -600,7 +524,7 @@ export const MobileARSimulator: React.FC<MobileARSimulatorProps> = ({ lang, onOp
 
                   <div className="absolute inset-0 bg-[linear-gradient(to_right,#33415515_1px,transparent_1px),linear-gradient(to_bottom,#33415515_1px,transparent_1px)] bg-[size:24px_24px]" />
                 </div>
-              )}
+              ) : null}
 
               {/* Camera Error / Permission Warning Overlay */}
               {cameraError && (
@@ -619,7 +543,7 @@ export const MobileARSimulator: React.FC<MobileARSimulatorProps> = ({ lang, onOp
                       <span>Upload Photo</span>
                     </button>
                     <button
-                      onClick={() => setCameraError(null)}
+                      onClick={stopCamera}
                       className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg"
                     >
                       Simulated Mine

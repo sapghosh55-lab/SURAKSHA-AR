@@ -28,6 +28,10 @@ interface FireExtinguisherARProps {
   cameraStream?: MediaStream | null;
   customBgUrl?: string | null;
   isCameraActive?: boolean;
+  pitch?: number;
+  roll?: number;
+  heading?: number;
+  luxValue?: number;
 }
 
 export const FireExtinguisherARCanvas: React.FC<FireExtinguisherARProps> = ({
@@ -35,13 +39,18 @@ export const FireExtinguisherARCanvas: React.FC<FireExtinguisherARProps> = ({
   onDrillComplete,
   cameraStream,
   customBgUrl,
-  isCameraActive
+  isCameraActive,
+  pitch = 0,
+  roll = 0,
+  heading = 0,
+  luxValue = 420
 }) => {
   const t = translations[lang];
 
-  // DOM Refs
+  // DOM & Three.js Camera Refs
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const bgVideoRef = useRef<HTMLVideoElement>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
 
   // State variables for P-A-S-S Drill Steps
   const [currentPassStep, setCurrentPassStep] = useState<number>(1); // 1: Pin, 2: Aim, 3: Squeeze, 4: Sweep
@@ -55,7 +64,6 @@ export const FireExtinguisherARCanvas: React.FC<FireExtinguisherARProps> = ({
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [bgBackdrop, setBgBackdrop] = useState<'shaft' | 'camera'>('shaft');
   const [isDrillFinished, setIsDrillFinished] = useState<boolean>(false);
-  const [luxValue, setLuxValue] = useState<number>(420);
 
   // Bind camera stream to video ref
   useEffect(() => {
@@ -63,6 +71,18 @@ export const FireExtinguisherARCanvas: React.FC<FireExtinguisherARProps> = ({
       bgVideoRef.current.srcObject = cameraStream;
     }
   }, [cameraStream, bgBackdrop]);
+
+  // Dynamically orient Three.js camera based on live IMU pitch, roll & heading
+  useEffect(() => {
+    if (cameraRef.current) {
+      const pitchRad = THREE.MathUtils.degToRad(pitch * 0.4);
+      const rollRad = THREE.MathUtils.degToRad(-roll * 0.4);
+      const yawRad = THREE.MathUtils.degToRad(heading * 0.1);
+      cameraRef.current.rotation.x = pitchRad;
+      cameraRef.current.rotation.z = rollRad;
+      cameraRef.current.rotation.y = yawRad;
+    }
+  }, [pitch, roll, heading]);
 
   // Three.js internal refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -116,11 +136,13 @@ export const FireExtinguisherARCanvas: React.FC<FireExtinguisherARProps> = ({
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 1.2, 3.2);
     camera.lookAt(0, 0.5, 0);
+    cameraRef.current = camera;
 
     // 2. Create WebGL Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
     renderer.shadowMap.enabled = true;
     rendererRef.current = renderer;
 
@@ -241,7 +263,7 @@ export const FireExtinguisherARCanvas: React.FC<FireExtinguisherARProps> = ({
 
     // 8. Animation Loop
     let animationFrameId: number;
-    let clock = new THREE.Clock();
+    const clock = new THREE.Clock();
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);

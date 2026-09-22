@@ -30,6 +30,10 @@ interface ToxicGasARProps {
   cameraStream?: MediaStream | null;
   customBgUrl?: string | null;
   isCameraActive?: boolean;
+  pitch?: number;
+  roll?: number;
+  heading?: number;
+  luxValue?: number;
 }
 
 export const ToxicGasARCanvas: React.FC<ToxicGasARProps> = ({
@@ -37,13 +41,18 @@ export const ToxicGasARCanvas: React.FC<ToxicGasARProps> = ({
   onDrillComplete,
   cameraStream,
   customBgUrl,
-  isCameraActive
+  isCameraActive,
+  pitch = 0,
+  roll = 0,
+  heading = 0,
+  luxValue = 420
 }) => {
   const t = translations[lang];
 
-  // DOM Refs
+  // DOM & Three.js Camera Refs
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const bgVideoRef = useRef<HTMLVideoElement>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
 
   // Bind camera stream to video ref
   useEffect(() => {
@@ -51,6 +60,18 @@ export const ToxicGasARCanvas: React.FC<ToxicGasARProps> = ({
       bgVideoRef.current.srcObject = cameraStream;
     }
   }, [cameraStream]);
+
+  // Dynamically orient Three.js camera based on live IMU pitch, roll & heading
+  useEffect(() => {
+    if (cameraRef.current) {
+      const pitchRad = THREE.MathUtils.degToRad(pitch * 0.4);
+      const rollRad = THREE.MathUtils.degToRad(-roll * 0.4);
+      const yawRad = THREE.MathUtils.degToRad(heading * 0.1);
+      cameraRef.current.rotation.x = pitchRad;
+      cameraRef.current.rotation.z = rollRad;
+      cameraRef.current.rotation.y = yawRad;
+    }
+  }, [pitch, roll, heading]);
 
   // PPE Selection State
   const [selectedGear, setSelectedGear] = useState<{
@@ -121,10 +142,12 @@ export const ToxicGasARCanvas: React.FC<ToxicGasARProps> = ({
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 1.2, 3.2);
     camera.lookAt(0, 0.5, 0);
+    cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
     rendererRef.current = renderer;
 
     while (canvasContainerRef.current.firstChild) {
@@ -198,7 +221,7 @@ export const ToxicGasARCanvas: React.FC<ToxicGasARProps> = ({
 
     // Animation Loop
     let animationFrameId: number;
-    let clock = new THREE.Clock();
+    const clock = new THREE.Clock();
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
