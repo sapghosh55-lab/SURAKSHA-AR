@@ -1,0 +1,39 @@
+@import "tailwindcss";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+@layer base {
+  body {
+    background-color: #ffffff;
+    color: #0f172a;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
+/* Custom retro LCD screen styling for Feature Phone */
+.lcd-screen {
+  background-color: #c4d8b2;
+  color: #1a3300;
+  font-family: 'Courier New', Courier, monospace;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+  border: 3px solid #334155;
+}
+
+/* Bureaucratic high-contrast shadow button utility */
+.gov-btn {
+  border: 2px solid #0f172a;
+  box-shadow: 3px 3px 0px 0px #0f172a;
+  transition: all 0.1s ease-in-out;
+}
+
+.gov-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px 0px #0f172a;
+}
+
+.gov-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px 0px #0f172a;
+}

@@ -1,0 +1,91 @@
+import type { VillageThreat } from './types';
+
+export const MOCK_VILLAGES: VillageThreat[] = [
+  {
+    id: 'VIL-8701',
+    name: 'Khanakul Gram North',
+    block: 'Khanakul-I',
+    district: 'Hooghly',
+    threatLevel: 'CRITICAL',
+    affectedAreaHa: 480,
+    inundationChangePct: 87,
+    lat: 22.716,
+    lng: 87.852,
+    status: 'PENDING',
+    contactPerson: 'Sri Subodh Bandyopadhyay (Panchayat Chief)',
+    contactPhone: '+91 98310 44921',
+    bengaliAlertText: 'জরুরি সতর্কতা: খানাকুল ১ নং ব্লকে রূপনারায়ণ নদের জল বাড়ায় ফসল ও ঘরবাড়ি প্লাবনের মারাত্মক ঝুঁকি। অবিলম্বে উঁচু স্থানে গবাদি পশু সহ আশ্রয় নিন। সরকারি সহায়তা দল আসছে।',
+    audioUrl: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73919.mp3?filename=alert-call-108871.mp3',
+    lastUpdated: '2024-09-25 14:15 IST'
+  },
+  {
+    id: 'VIL-8702',
+    name: 'Arambagh East Pally',
+    block: 'Arambagh',
+    district: 'Hooghly',
+    threatLevel: 'HIGH',
+    affectedAreaHa: 340,
+    inundationChangePct: 64,
+    lat: 22.882,
+    lng: 87.784,
+    status: 'DISPATCHED',
+    contactPerson: 'Smt. Anjali Roy (Block Dev Officer)',
+    contactPhone: '+91 94331 88204',
+    bengaliAlertText: 'সতর্কতা বার্তা: আরামবাগ পূর্ব ব্লকে আমন ধানের জমিতে প্লাবনের আশঙ্কা। নিকাশি ড্রেন পরিষ্কার রাখুন এবং সেচ পাম্প প্রস্তুত রাখুন।',
+    audioUrl: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73919.mp3?filename=alert-call-108871.mp3',
+    lastUpdated: '2024-09-25 13:50 IST'
+  },
+  {
+    id: 'VIL-8703',
+    name: 'Pursurah South Mouza',
+    block: 'Pursurah',
+    district: 'Hooghly',
+    threatLevel: 'HIGH',
+    affectedAreaHa: 290,
+    inundationChangePct: 58,
+    lat: 22.834,
+    lng: 87.961,
+    status: 'PENDING',
+    contactPerson: 'Sri M. K. Ghosh (Agricultural Officer)',
+    contactPhone: '+91 97322 10984',
+    bengaliAlertText: 'জরুরি নির্দেশ: পুরশুড়া দক্ষিণে অতিবৃষ্টির জল জমার কারণে সবজি চাষ ক্ষতিগ্রস্ত হতে পারে। পলিথিন ঢাকা ও ড্রেনেজ চ্যানেল তৈরি করুন।',
+    audioUrl: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73919.mp3?filename=alert-call-108871.mp3',
+    lastUpdated: '2024-09-25 14:00 IST'
+  },
+  {
+    id: 'VIL-8704',
+    name: 'Tarakeswar North Field',
+    block: 'Tarakeswar',
+    district: 'Hooghly',
+    threatLevel: 'MODERATE',
+    affectedAreaHa: 175,
+    inundationChangePct: 34,
+    lat: 22.891,
+    lng: 88.023,
+    status: 'MONITORING',
+    contactPerson: 'Sri Parthasarathi Biswas (Disaster Control)',
+    contactPhone: '+91 91630 55412',
+    bengaliAlertText: 'তথ্য সারণী: তারাকেশ্বর উত্তর অঞ্চলে নদী বাঁধের নিয়মিত তদারকি চলছে। পরিস্থিতি এখনো নিয়ন্ত্রণে রয়েছে। সতর্কতা বজায় রাখুন।',
+    audioUrl: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73919.mp3?filename=alert-call-108871.mp3',
+    lastUpdated: '2024-09-25 12:30 IST'
+  },
+  {
+    id: 'VIL-8705',
+    name: 'Jangipara West Sector',
+    block: 'Jangipara',
+    district: 'Hooghly',
+    threatLevel: 'CRITICAL',
+    affectedAreaHa: 520,
+    inundationChangePct: 92,
+    lat: 22.653,
+    lng: 88.105,
+    status: 'PENDING',
+    contactPerson: 'Sri Kalyan Sen (Gram Pradhan)',
+    contactPhone: '+91 98001 77310',
+    bengaliAlertText: 'জরুরি লাল সতর্কতা: জাঙ্গিপাড়া পশ্চিমে দামোদরের বাড়তি জলে ৫০০ হেক্টরের বেশি কৃষি জমি প্লাবিত। অবিলম্বে স্থানান্তরের নির্দেশ দেওয়া হলো।',
+    audioUrl: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73919.mp3?filename=alert-call-108871.mp3',
+    lastUpdated: '2024-09-25 14:20 IST'
+  }
+];
+
+export const HOOGHLY_BBOX = [87.5, 22.5, 88.5, 23.5];
