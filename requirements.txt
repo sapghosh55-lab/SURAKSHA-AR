@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+pydantic-settings
+apscheduler
+rasterio
+geopandas
+shapely
+torch
+torchvision
+google-genai
+twilio
+elevenlabs
+geemap
+auth0-python
